@@ -44,8 +44,13 @@ def main() -> None:
     # The test is run from main (stock template) OR from the experimental branch.
     # In either case, all model roles are fixed to a free endpoint.
     from main import FallTemplateBot2026
+    bot_class = FallTemplateBot2026
+    if os.getenv("EXPERIMENTAL_NEWS_RESEARCH") == "1":
+        from grounded_bot import ResearchFallBot2026
+        bot_class = ResearchFallBot2026
+        print("Experimental GDELT headline research enabled; metadata is not verified.")
 
-    bot = FallTemplateBot2026(
+    bot = bot_class(
         research_reports_per_question=1,
         predictions_per_research_report=1,
         use_research_summary_to_forecast=False,
