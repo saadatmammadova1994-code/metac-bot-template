@@ -2,8 +2,7 @@ name: Forecast on new AI tournament questions
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "7,27,47 * * * *" # every 20 min, offset off the hour. Make sure to skip already-forecasted questions!
+  # Manual-only until user approves scheduling and model budget.
 
 # Add concurrency group to prevent parallel runs
 concurrency:
