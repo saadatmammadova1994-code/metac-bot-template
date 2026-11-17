@@ -252,5 +252,14 @@ class Tests(unittest.TestCase):
         self.assertIn("off_topic_rejected", s)
 
 
+    def test_experimental_research_runs_without_submitting(self):
+        runner = Path("scripts/free_single_question_test.py").read_text()
+        self.assertIn('will_publish = os.getenv("EXPERIMENTAL_NEWS_RESEARCH") != "1"', runner)
+        self.assertIn("publish_reports_to_metaculus=will_publish", runner)
+        self.assertIn("will_publish=will_publish", runner)
+        self.assertIn("NO forecast was submitted", runner)
+
+
+
 if __name__ == "__main__":
     unittest.main()
