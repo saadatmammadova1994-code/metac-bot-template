@@ -26,6 +26,8 @@ class TestFreeSmokeSafety(unittest.TestCase):
         self.assertIn("workflow_dispatch:", workflow)
         self.assertNotIn("schedule:", workflow)
         self.assertIn("scripts/free_single_question_test.py", workflow)
+        self.assertIn("uv run python -m scripts.free_single_question_test", workflow)
+        self.assertNotIn("uv run python scripts/free_single_question_test.py", workflow)
 
 
 if __name__ == "__main__":
