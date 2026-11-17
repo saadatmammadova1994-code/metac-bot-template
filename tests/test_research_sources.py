@@ -11,6 +11,8 @@ from research_sources import (
     MAX_ARTICLES, MAX_BYTES, fetch_recent_headlines, format_news_brief,
     gdelt_url, normalize_query, parse_articles,
     fetch_google_news_rss, fetch_news_with_fallback,
+    headline_related_to_question, filter_relevant_headlines,
+    is_eu_withdrawal_question,
 )
 
 NOW = datetime(2026, 11, 17, 9, 0, tzinfo=timezone.utc)
@@ -172,6 +174,82 @@ class Tests(unittest.TestCase):
             return Response({}, content_type="application/rss+xml", raw=rss)
         result = fetch_google_news_rss("European union summit", fake, now=NOW)
         self.assertEqual(result, [])
+
+
+    def test_eu_exit_scenario_recognized(self):
+        q = ("Will any of Belgium, France, Italy, Luxembourg, "
+             "Netherlands, and/or Germany leave the EU before 2027?")
+        self.assertTrue(is_eu_withdrawal_question(q))
+        self.assertFalse(is_eu_withdrawal_question("Will France host an EU summit?"))
+
+    def test_eu_exit_headline_relevant(self):
+        q = "Will France or Germany leave the EU before 2027?"
+        self.assertTrue(headline_related_to_question(
+            q, "France announces consultation on leaving the EU"))
+        self.assertTrue(headline_related_to_question(
+            q, "German party debates Germany's withdrawal from European Union"))
+
+    def test_eu_exit_off_topic_country_rejected(self):
+        q = "Will France or Germany leave the EU before 2027?"
+        self.assertFalse(headline_related_to_question(
+            q, "French president debates domestic pension reform"))
+        self.assertFalse(headline_related_to_question(
+            q, "Germany signs new EU rail transport rules"))
+
+    def test_eu_exit_generic_eu_exit_of_other_country_rejected(self):
+        q = "Will Belgium France Italy or Germany leave the EU before 2027?"
+        self.assertFalse(headline_related_to_question(
+            q, "UK Brexit exit process ends with new EU agreement"))
+
+    def test_eu_exit_unrelated_events_from_screenshot_rejected(self):
+        q = ("Will any of Belgium, France, Italy, Luxembourg, "
+             "Netherlands or Germany leave the EU before 2027?")
+        headlines = [
+            "Taiwan sanctions generate new international tensions",
+            "Boeing boosts aviation production",
+            "Brazil announces a new foreign policy",
+            "Spanish railway regulations change",
+            "France debates pension spending amid EU discussions",
+            "Germany to withdraw from European Union, party proposes vote",
+        ]
+        articles = [{"headline": h, "url": "https://example.org/"+str(i),
+                     "date": "2026-11-17", "domain": "example.org"}
+                    for i, h in enumerate(headlines)]
+        filtered = filter_relevant_headlines(q, articles)
+        self.assertEqual(len(filtered), 1)
+        self.assertIn("Germany", filtered[0]["headline"])
+
+    def test_no_results_is_not_evidence_of_no(self):
+        q = "Will any of France or Germany leave EU before 2027?"
+        articles = [{"headline": "France discusses school policy"}]
+        filtered = filter_relevant_headlines(q, articles)
+        self.assertEqual(filtered, [])
+        text = format_news_brief(filtered, NOW)
+        self.assertIn("No relevant, dated headlines retrieved", text)
+        self.assertIn("UNVERIFIED", text)
+
+    def test_word_boundaries_not_substrings(self):
+        q = "Will France leave the EU?"
+        self.assertFalse(headline_related_to_question(
+            q, "French research to achieve clean energy"))
+        self.assertTrue(headline_related_to_question(
+            q, "France debates EU exit"))
+
+    def test_generic_topic_two_distinctive_terms(self):
+        q = "Will Senegal win the continental football championship?"
+        self.assertTrue(headline_related_to_question(
+            q, "Senegal football team advances to semifinals"))
+        self.assertFalse(headline_related_to_question(
+            q, "Senegal's central bank announces rate change"))
+
+    def test_empty_headline_false(self):
+        self.assertFalse(headline_related_to_question(
+            "Will Italy leave the EU?", ""))
+
+    def test_source_filter_is_used_in_bot(self):
+        s = Path("grounded_bot.py").read_text()
+        self.assertIn("filter_relevant_headlines(question.question_text, articles)", s)
+        self.assertIn("off_topic_rejected", s)
 
 
 if __name__ == "__main__":
