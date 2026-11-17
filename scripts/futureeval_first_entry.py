@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from collections import Counter
 import os
 import sys
 
@@ -21,17 +22,29 @@ TOURNAMENT_URL = "https://www.metaculus.com/tournament/fall-futureeval-2026/"
 MIN_TIME_TO_CLOSE = timedelta(hours=36)
 
 
+
+def get_question_identity(question: BinaryQuestion) -> int:
+    """Unique question id for group subquestions; post id only for standalone."""
+    if question.id_of_question is not None:
+        return int(question.id_of_question)
+    if question.question_ids_of_group:
+        raise ValueError("Group subquestion has no unique ID; submission refused")
+    if question.id_of_post is None:
+        raise ValueError("Missing post ID; submission refused")
+    return int(question.id_of_post)
+
+
 def available_binary_questions(client, now: datetime) -> list[BinaryQuestion]:
-    """Only open standalone binary questions not previously forecasted by this bot."""
+    """Open binary questions, including group subquestions, not yet forecasted."""
     questions = client.get_all_open_questions_from_tournament(
-        TOURNAMENT, group_question_mode="exclude"
+        TOURNAMENT, group_question_mode="unpack_subquestions"
     )
     accepted: list[BinaryQuestion] = []
     diagnostics = {
         "not_binary": 0, "conditional": 0,
         "already_forecast": 0, "no_close_time": 0,
         "naive_close_time": 0, "closing_soon": 0,
-        "missing_post_id": 0,
+        "missing_post_id": 0, "missing_subquestion_id": 0,
     }
     for q in questions:
         if not isinstance(q, BinaryQuestion):
@@ -40,7 +53,7 @@ def available_binary_questions(client, now: datetime) -> list[BinaryQuestion]:
         if q.conditional_type is not None:
             diagnostics["conditional"] += 1
             continue
-        if q.previous_forecasts:
+        if q.previous_forecasts or q.already_forecasted:
             diagnostics["already_forecast"] += 1
             continue
         if q.close_time is None:
@@ -57,8 +70,12 @@ def available_binary_questions(client, now: datetime) -> list[BinaryQuestion]:
         if q.id_of_post is None:
             diagnostics["missing_post_id"] += 1
             continue
+        if q.question_ids_of_group and q.id_of_question is None:
+            diagnostics["missing_subquestion_id"] += 1
+            continue
         accepted.append(q)
-    print(f"TOURNAMENT API ID: {TOURNAMENT}; open standalone raw questions={len(questions)}")
+    print(f"TOURNAMENT API ID: {TOURNAMENT}; open question/subquestion items={len(questions)}")
+    print(f"Types returned: {dict(Counter(q.question_type for q in questions))}")
     print(f"Eligible first-entry binary questions={len(accepted)}")
     print(f"Rejected by reason (first applicable): {diagnostics}")
     # Closest to 7 days away; quick feedback but adequate review window.
@@ -67,7 +84,7 @@ def available_binary_questions(client, now: datetime) -> list[BinaryQuestion]:
         key=lambda q: (
             abs((q.close_time.astimezone(timezone.utc) - now).total_seconds()
                 - 7 * 86400),
-            int(q.id_of_post),
+            get_question_identity(q),
         ),
     )
 
@@ -76,7 +93,7 @@ def select_question(questions: list[BinaryQuestion], question_id: str) -> Binary
     if question_id:
         if not question_id.isdecimal():
             raise ValueError("Question ID must contain only digits")
-        matches = [q for q in questions if int(q.id_of_post) == int(question_id)]
+        matches = [q for q in questions if get_question_identity(q) == int(question_id)]
         if len(matches) != 1:
             raise ValueError(
                 "Selected question is no longer open/eligible, or already forecasted. "
@@ -114,12 +131,14 @@ def main() -> None:
     now = datetime.now(timezone.utc)
     candidates = available_binary_questions(client, now)
     selected = select_question(candidates, question_id)
-    selected_id = int(selected.id_of_post)
+    selected_id = get_question_identity(selected)
     print(f"TOURNAMENT: {TOURNAMENT} (one question only)")
     print(f"MODE: {mode.upper()} | question_id: {selected_id}")
     print(f"QUESTION: {selected.question_text[:480]}")
     print(f"CLOSE UTC: {selected.close_time.astimezone(timezone.utc).isoformat()}")
-    print(f"URL: {selected.page_url}")
+    print(f"POST URL: {selected.page_url}")
+    if selected.group_question_option:
+        print(f"GROUP OPTION: {selected.group_question_option}")
     if mode == "preview":
         print("DRY RUN: the model's prediction will NOT be submitted.")
     else:
@@ -141,7 +160,7 @@ def main() -> None:
     report = reports[0]
     if report.errors:
         raise SystemExit(f"Forecast report contains {len(report.errors)} errors")
-    if int(report.question.id_of_post) != selected_id:
+    if get_question_identity(report.question) != selected_id:
         raise SystemExit("Question mismatch; do not trust the report")
     print(f"MODEL PROBABILITY: {report.prediction}")
     try:
