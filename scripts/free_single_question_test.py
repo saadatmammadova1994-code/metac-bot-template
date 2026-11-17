@@ -1,8 +1,10 @@
-"""One-question, free-model-only Metaculus bot smoke test.
+"""One-question, Gemini free-tier Metaculus bot smoke test.
 
 Run manually via the GitHub "Test Bot" action. Never forecasts on the live
 competition, never schedules another run, and never selects a paid LLM.
-A free endpoint can still reject requests due to quota or availability.
+Requires a GOOGLE AI STUDIO FREE-TIER project with billing NOT enabled.
+A key from a billing-enabled project may create charges; never use one here.
+Free-tier usage can still fail due to quota or availability.
 """
 from __future__ import annotations
 
@@ -10,7 +12,7 @@ import asyncio
 import os
 import sys
 
-from bot_helpers import check_environment, print_run_summary_banner
+from bot_helpers import print_run_summary_banner
 from forecasting_tools import (
     BinaryQuestion,
     ForecastReport,
@@ -18,12 +20,12 @@ from forecasting_tools import (
     MetaculusClient,
 )
 
-FREE_MODEL = "openrouter/nvidia/nemotron-3.5-super-vl:free"
+FREE_MODEL = "gemini/gemini-3.1-flash-lite"
 TEST_TOURNAMENT = "bot-testing-area"
 
 
 def free_model_config() -> dict:
-    if not FREE_MODEL.startswith("openrouter/") or not FREE_MODEL.endswith(":free"):
+    if FREE_MODEL != "gemini/gemini-3.1-flash-lite":
         raise RuntimeError("Refusing non-free model in the smoke test.")
     # All model functions are explicitly set, blocking the SDK's paid defaults.
     return {
@@ -35,9 +37,10 @@ def free_model_config() -> dict:
 
 
 def main() -> None:
-    check_environment(strict=True)
-    if not os.getenv("OPENROUTER_API_KEY"):
-        raise SystemExit("Missing OPENROUTER_API_KEY; refusing to use any other provider")
+    if not os.getenv("METACULUS_TOKEN"):
+        raise SystemExit("Missing METACULUS_TOKEN")
+    if not os.getenv("GEMINI_API_KEY"):
+        raise SystemExit("Missing GEMINI_API_KEY; refusing to use another provider")
     # The test is run from main (stock template) OR from the experimental branch.
     # In either case, all model roles are fixed to a free endpoint.
     from main import FallTemplateBot2026
