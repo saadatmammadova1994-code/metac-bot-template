@@ -219,3 +219,93 @@ def fetch_news_with_fallback(query: str, gdelt_opener=None,
     except Exception:
         pass
     return fetch_google_news_rss(query, opener=rss_opener)
+
+
+# Title-level relevance is a conservative screen, not fact verification.
+# The EU-withdrawal scenario needs a strict outcome-specific check: a story
+# about an EU country's other news is NOT evidence of an EU exit.
+_EU_MEMBERS = {
+    "belgium": ("belgium", "belgian", "belgique", "belgië"),
+    "france": ("france", "french", "française", "francais"),
+    "italy": ("italy", "italian", "italia", "italiano"),
+    "luxembourg": ("luxembourg", "luxemburg", "luxembourgeois"),
+    "netherlands": ("netherlands", "dutch", "nederland", "nederlandse"),
+    "germany": ("germany", "german", "deutschland", "deutsche"),
+}
+_EXIT_TERMS = (
+    "withdraw", "withdrawing", "withdrawal", "leave", "leaving",
+    "exit", "exiting", "quit", "quitting", "depart", "departure",
+    "secession", "frexit", "italexit", "nexit", "dexit",
+    "austritt", "uscita", "quitter", "sortie", "salir", "salida",
+    "abandona", "abandonar", "uittreden", "vertrek",
+)
+_UNION_TERMS = (
+    "eu", "european union", "european community", "article 50",
+    "treaty on european union", "frexit", "italexit", "nexit", "dexit",
+    "ue", "unione europea", "union européenne",
+    "unión europea", "europäische union", "europese unie",
+)
+_GENERIC_STOPWORDS = _STOPWORDS | {
+    "any", "one", "many", "some", "among", "these", "their", "there",
+    "before", "between", "until", "than", "into", "around", "given",
+    "expected", "future", "prediction", "resolution", "countries",
+    "members", "european", "world", "will", "would", "question",
+}
+
+
+def _token_matches(text: str, terms: tuple[str, ...]) -> bool:
+    """Match complete words/phrases; do not count 'leave' in 'cleave'."""
+    return any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text,
+                         flags=re.IGNORECASE) for term in terms)
+
+
+def is_eu_withdrawal_question(question_text: str) -> bool:
+    """Narrowly recognize EU exit / withdrawal questions only."""
+    if not isinstance(question_text, str):
+        return False
+    text = question_text.lower()
+    has_union = _token_matches(text, ("eu", "european union"))
+    has_exit = _token_matches(text, ("leave", "leaving", "withdraw",
+                                   "withdrawal", "exit", "quitting"))
+    return has_union and has_exit
+
+
+def headline_related_to_question(question_text: str, headline: str) -> bool:
+    """Conservative heuristic: possible relevance, not evidence of truth.
+
+    For EU-withdrawal questions, require a named member, exit-related
+    action, and EU reference. For other topics, require several meaningful
+    token overlaps; ambiguity must not become an invented source.
+    """
+    if not isinstance(headline, str) or not headline.strip():
+        return False
+    question = question_text or ""
+    title = headline.lower()
+    if is_eu_withdrawal_question(question):
+        q = question.lower()
+        named = [aliases for name, aliases in _EU_MEMBERS.items()
+                 if re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", q)]
+        if not named:
+            return False
+        return (any(_token_matches(title, aliases) for aliases in named)
+                and _token_matches(title, _EXIT_TERMS)
+                and _token_matches(title, _UNION_TERMS))
+    # Generic questions: do not claim a robust semantic assessment.
+    # Demand at least two distinctive question tokens in the headline.
+    title_words = set(re.findall(r"[a-z][a-z0-9'-]{3,}", title))
+    question_words = set(re.findall(r"[a-z][a-z0-9'-]{3,}", question.lower()))
+    shared = (title_words & question_words) - _GENERIC_STOPWORDS
+    return len(shared) >= 2
+
+
+def filter_relevant_headlines(
+    question_text: str, articles: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """Remove evidently off-topic headlines, preserving original metadata.
+
+    Results are only TOPIC-CANDIDATE headlines; no article was verified.
+    Never interpret no matches as proof that the event will not happen.
+    """
+    return [row for row in articles
+            if headline_related_to_question(question_text,
+                                            str(row.get("headline", "")))]
