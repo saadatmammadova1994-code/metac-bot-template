@@ -13,10 +13,12 @@ class TestFreeSmokeSafety(unittest.TestCase):
 
     def test_explicit_free_model(self):
         source = (ROOT / "scripts/free_single_question_test.py").read_text()
-        self.assertIn('FREE_MODEL = "openrouter/nvidia/nemotron-3.5-super-vl:free"', source)
-        self.assertIn('not FREE_MODEL.endswith(":free")', source)
+        self.assertIn('FREE_MODEL = "gemini/gemini-3.1-flash-lite"', source)
+        self.assertIn('FREE_MODEL != "gemini/gemini-3.1-flash-lite"', source)
         self.assertIn('"researcher": "no_research"', source)
         self.assertIn("llms=free_model_config()", source)
+        self.assertIn('os.getenv("GEMINI_API_KEY")', source)
+        self.assertNotIn("OPENROUTER_API_KEY", source)
         self.assertIn("forecast_questions([binary]", source)
 
     def test_test_workflow_manual_only(self):
