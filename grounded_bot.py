@@ -57,6 +57,10 @@ class ResearchFallBot2026(FallTemplateBot2026):
             articles = await asyncio.to_thread(fetch_news_with_fallback, topic)
         except Exception as exc:  # Network/HTTP/JSON failures: no invented data.
             logger.warning("Headline index unavailable: %s", type(exc).__name__)
+            print("Research source status: unavailable; 0 verified articles")
             return format_news_brief([])
-        logger.info("Retrieved %d indexed headline(s); no full articles fetched",len(articles))
+        print(
+            f"Research source status: {len(articles)} unverified indexed headline(s); "
+            "no full articles downloaded or verified"
+        )
         return format_news_brief(articles)
