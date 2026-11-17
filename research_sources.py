@@ -11,10 +11,13 @@ from datetime import datetime, timedelta, timezone
 from email.message import Message
 import json
 import re
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
+NEWS_RSS_URL = "https://news.google.com/rss/search"
 MAX_ARTICLES = 6
 MAX_BYTES = 300_000
 SEARCH_DAYS = 30
@@ -143,3 +146,76 @@ def format_news_brief(articles: list[dict[str, str]], asof: datetime | None = No
             f"{row['headline']} | {row['url']}"
         )
     return "\n".join(lines)
+
+
+def fetch_google_news_rss(query: str, opener=None,
+                          now: datetime | None = None) -> list[dict[str, str]]:
+    """One Google News RSS request for fallback headline metadata only.
+
+    This retrieves RSS title/URL/date metadata. It never fetches publisher
+    pages and does not assert that the headline is true or relevant.
+    """
+    opener = opener or urlopen
+    params = urlencode({
+        "q": normalize_query(query), "hl": "en-US",
+        "gl": "US", "ceid": "US:en",
+    })
+    req = Request(
+        f"{NEWS_RSS_URL}?{params}",
+        headers={"User-Agent": "Mozilla/5.0 (compatible; FutureEvalResearch/0.1)",
+                 "Accept": "application/rss+xml,application/xml,text/xml"},
+    )
+    with opener(req, timeout=10) as response:
+        content_type = response.headers.get("Content-Type", "")
+        if not any(x in content_type.lower() for x in ("xml", "rss")):
+            raise ValueError("News RSS endpoint did not return XML")
+        raw = response.read(MAX_BYTES + 1)
+    if len(raw) > MAX_BYTES:
+        raise ValueError("RSS exceeds size limit")
+    root = ET.fromstring(raw)
+    current = now or datetime.now(timezone.utc)
+    lower = current - timedelta(days=SEARCH_DAYS)
+    seen: set[str] = set()
+    result: list[dict[str, str]] = []
+    for item in root.findall(".//channel/item")[:30]:
+        title = _safe_text(item.findtext("title"), 180)
+        link = _safe_text(item.findtext("link"), 1000)
+        try:
+            date_text = item.findtext("pubDate") or ""
+            date = parsedate_to_datetime(date_text)
+            if date.tzinfo is None:
+                continue
+            seen_at = date.astimezone(timezone.utc)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        url = urlsplit(link)
+        if (not title or url.scheme != "https"
+                or url.hostname != "news.google.com"
+                or link in seen or not lower <= seen_at <= current):
+            continue
+        seen.add(link)
+        source_tag = item.find("source")
+        domain = _safe_text(source_tag.text, 80) if source_tag is not None else ""
+        result.append({
+            "headline": title, "url": link,
+            "domain": domain or "Google News RSS",
+            "date": seen_at.date().isoformat(),
+        })
+        if len(result) >= MAX_ARTICLES:
+            break
+    return result
+
+
+def fetch_news_with_fallback(query: str, gdelt_opener=None,
+                             rss_opener=None) -> list[dict[str, str]]:
+    """At most one GDELT request + one RSS request, no retries.
+
+    Source outages or non-matches may yield zero articles; never invent data.
+    """
+    try:
+        primary = fetch_recent_headlines(query, opener=gdelt_opener)
+        if primary:
+            return primary
+    except Exception:
+        pass
+    return fetch_google_news_rss(query, opener=rss_opener)
