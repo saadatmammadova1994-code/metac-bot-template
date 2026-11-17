@@ -683,6 +683,33 @@ class FallTemplateBot2026(ForecastBot):
         )
 
 
+# === GUARDED_FUTUREEVAL_V2: EXPLICITLY OPT-IN, OFF BY DEFAULT ===
+# Untested on the live Metaculus service. Binary only; other types are untouched.
+import os as _futureeval_os
+from guard_logic import guard_binary_probability as _futureeval_guard_binary
+
+
+class GuardedFallBot2026(FallTemplateBot2026):
+    async def _run_forecast_on_binary(
+        self, question: BinaryQuestion, research: str
+    ) -> ReasonedPrediction[float]:
+        original = await super()._run_forecast_on_binary(question, research)
+        shrink = float(_futureeval_os.getenv("FORECAST_GUARD_SHRINK", "0.0"))
+        if shrink == 0.0:
+            return original
+        initial = float(original.prediction_value)
+        modified = _futureeval_guard_binary(initial, shrink=shrink)
+        return ReasonedPrediction(
+            prediction_value=modified,
+            reasoning=(
+                (original.reasoning or "")
+                + f"\n\n[Experimental guard: original={initial:.6f}, "
+                + f"shrink={shrink:.3f}, final={modified:.6f}. NOT validated]"
+            ),
+        )
+# === END GUARDED_FUTUREEVAL_V2 ===
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
@@ -707,7 +734,7 @@ if __name__ == "__main__":
     # Configure the bot. The `llms=` block below is commented out to use
     # whichever default models forecasting-tools picks based on your env vars;
     # uncomment and edit to pin specific models.
-    template_bot = FallTemplateBot2026(
+    template_bot = GuardedFallBot2026(
         research_reports_per_question=1,
         predictions_per_research_report=5,
         use_research_summary_to_forecast=False,
