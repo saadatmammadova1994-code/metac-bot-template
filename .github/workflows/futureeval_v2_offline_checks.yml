@@ -22,6 +22,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile source (does not import external dependencies)
-        run: python -m compileall -q main.py guard_logic.py forecast_core.py chronological_backtest.py scripts/free_single_question_test.py
+        run: python -m compileall -q main.py guard_logic.py forecast_core.py chronological_backtest.py scripts/free_single_question_test.py research_sources.py grounded_bot.py
       - name: Run offline unit tests
         run: PYTHONPATH=. python -m unittest discover -s tests -v
