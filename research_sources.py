@@ -64,7 +64,7 @@ def _parse_date(value: object) -> datetime | None:
 def _safe_text(raw: object, limit: int) -> str:
     if not isinstance(raw, str):
         return ""
-    return re.sub(r"\\s+", " ", raw).replace("<", "").replace(">", "").strip()[:limit]
+    return re.sub(r"\s+", " ", raw).replace("<", "").replace(">", "").strip()[:limit]
 
 
 def parse_articles(payload: object, now: datetime | None = None) -> list[dict[str, str]]:
@@ -141,4 +141,4 @@ def format_news_brief(articles: list[dict[str, str]], asof: datetime | None = No
             f"[{idx}] {row['date']} | {row['domain']} | "
             f"{row['headline']} | {row['url']}"
         )
-    return "\\n".join(lines)
+    return "\n".join(lines)
