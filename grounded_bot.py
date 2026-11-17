@@ -12,7 +12,7 @@ import os
 from forecasting_tools import MetaculusQuestion
 from main import FallTemplateBot2026
 from research_sources import (
-    fetch_recent_headlines,
+    fetch_news_with_fallback,
     format_news_brief,
     normalize_query,
 )
@@ -51,10 +51,10 @@ class ResearchFallBot2026(FallTemplateBot2026):
             except ValueError:
                 return format_news_brief([])
 
-        # One keyless request; GDELT can rate-limit. Headlines are discovery
-        # metadata only and should never be asserted to prove a claim.
+        # At most one GDELT + one RSS request; both can rate-limit. Headlines
+        # are unverified metadata and must never prove an event occurred.
         try:
-            articles = await asyncio.to_thread(fetch_recent_headlines, topic)
+            articles = await asyncio.to_thread(fetch_news_with_fallback, topic)
         except Exception as exc:  # Network/HTTP/JSON failures: no invented data.
             logger.warning("Headline index unavailable: %s", type(exc).__name__)
             return format_news_brief([])
