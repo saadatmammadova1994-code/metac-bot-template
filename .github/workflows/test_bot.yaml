@@ -30,14 +30,14 @@ jobs:
       - name: Validate secret names and limits
         env:
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           test -n "$METACULUS_TOKEN" || (echo "Missing METACULUS_TOKEN" && exit 1)
-          test -n "$OPENROUTER_API_KEY" || (echo "Missing OPENROUTER_API_KEY" && exit 1)
-          grep -Fq 'FREE_MODEL = "openrouter/nvidia/nemotron-3.5-super-vl:free"' scripts/free_single_question_test.py
-          echo "Manual-only, single-question, free-endpoint smoke test"
+          test -n "$GEMINI_API_KEY" || (echo "Missing GEMINI_API_KEY" && exit 1)
+          grep -Fq 'FREE_MODEL = "gemini/gemini-3.1-flash-lite"' scripts/free_single_question_test.py
+          echo "Manual-only, single-question, Google free-tier smoke test; requires NO BILLING project"
       - name: Run one test-area binary forecast only
         env:
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: uv run python scripts/free_single_question_test.py
