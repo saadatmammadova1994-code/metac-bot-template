@@ -1,0 +1,26 @@
+name: Source research offline checks
+
+on:
+  push:
+    branches:
+      - feature/source-research-test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile production and experimental Python
+        run: python -m compileall -q main.py grounded_bot.py research_sources.py scripts/free_single_question_test.py
+      - name: Run deterministic research tests without external API keys
+        run: PYTHONPATH=. python -m unittest discover -s tests -v

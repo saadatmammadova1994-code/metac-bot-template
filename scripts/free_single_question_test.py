@@ -44,12 +44,23 @@ def main() -> None:
     # The test is run from main (stock template) OR from the experimental branch.
     # In either case, all model roles are fixed to a free endpoint.
     from main import FallTemplateBot2026
+    bot_class = FallTemplateBot2026
+    if os.getenv("EXPERIMENTAL_NEWS_RESEARCH") == "1":
+        from grounded_bot import ResearchFallBot2026
+        bot_class = ResearchFallBot2026
+        print("Experimental GDELT news metadata discovery enabled; not verified.")
 
-    bot = FallTemplateBot2026(
+    # Research experiments stay local/dry-run after the first test-area
+    # submission. This avoids repeatedly changing the same bot prediction.
+    will_publish = os.getenv("EXPERIMENTAL_NEWS_RESEARCH") != "1"
+    if not will_publish:
+        print("DRY RUN: research test will not submit or overwrite a forecast")
+
+    bot = bot_class(
         research_reports_per_question=1,
         predictions_per_research_report=1,
         use_research_summary_to_forecast=False,
-        publish_reports_to_metaculus=True,
+        publish_reports_to_metaculus=will_publish,
         skip_previously_forecasted_questions=False,
         folder_to_save_reports_to=None,
         llms=free_model_config(),
@@ -61,13 +72,16 @@ def main() -> None:
         raise SystemExit("No open standalone binary question in test tournament")
     print(f"Test-only forecast target: {binary.page_url}")
     reports = asyncio.run(bot.forecast_questions([binary], return_exceptions=True))
-    print_run_summary_banner(reports, will_publish=True,
+    print_run_summary_banner(reports, will_publish=will_publish,
                              tournament_url="https://www.metaculus.com/tournament/bot-testing-area/")
     if len(reports) != 1 or not isinstance(reports[0], ForecastReport):
         raise SystemExit("One-question test did not produce a valid forecast report")
     if reports[0].errors:
         raise SystemExit(f"Forecast report contains {len(reports[0].errors)} error(s)")
-    print("Test job ended. Verify a forecast actually appears on YOUR BOT profile.")
+    if will_publish:
+        print("Test job ended. Verify a forecast on the bot profile.")
+    else:
+        print("Research dry run complete; NO forecast was submitted.")
 
 
 if __name__ == "__main__":
