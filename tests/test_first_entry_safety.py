@@ -89,6 +89,14 @@ class EntryTests(unittest.TestCase):
         self.assertIn('acknowledgement != "true" or not question_id', SCRIPT)
         self.assertIn('if mode == "submit":', SCRIPT)
 
+    def test_empty_feed_in_preview_exits_without_error_or_model_call(self):
+        self.assertIn('if not candidates and mode == "preview" and not question_id:', SCRIPT)
+        self.assertIn('NO OPEN ELIGIBLE FUTUREEVAL QUESTIONS', SCRIPT)
+        self.assertLess(
+            SCRIPT.index('if not candidates and mode == "preview" and not question_id:'),
+            SCRIPT.index('selected = select_question(candidates, question_id)')
+        )
+
     def test_free_tier_gate(self):
         self.assertIn('if free_tier != "true":', SCRIPT)
         self.assertIn('confirm_free_tier:', WORKFLOW)
