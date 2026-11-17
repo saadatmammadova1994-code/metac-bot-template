@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 from datetime import datetime, timedelta, timezone
+from collections import Counter
 from pathlib import Path
 import unittest
 
@@ -13,8 +14,14 @@ WORKFLOW = (ROOT / ".github/workflows/first_futureeval_entry.yml").read_text(enc
 
 class FakeBinaryQuestion:
     def __init__(self, id: int, *, close_time, previous_forecasts=None,
-                 conditional_type=None):
+                 conditional_type=None, id_of_question=None,
+                 question_ids_of_group=None, already_forecasted=False):
         self.id_of_post = id
+        self.id_of_question = id_of_question
+        self.question_ids_of_group = question_ids_of_group
+        self.already_forecasted = already_forecasted
+        self.group_question_option = None
+        self.question_type = "binary"
         self.close_time = close_time
         self.previous_forecasts = previous_forecasts
         self.conditional_type = conditional_type
@@ -31,7 +38,7 @@ class FakeClient:
 
     def get_all_open_questions_from_tournament(self, name, group_question_mode):
         assert name == 33121
-        assert group_question_mode == "exclude"
+        assert group_question_mode == "unpack_subquestions"
         return self.questions
 
 
@@ -40,7 +47,7 @@ def load_pure_selection_functions():
     nodes = [
         node for node in tree.body
         if isinstance(node, ast.FunctionDef)
-        and node.name in ("available_binary_questions", "select_question")
+        and node.name in ("available_binary_questions", "select_question", "get_question_identity")
     ]
     module = ast.Module(
         body=[ast.ImportFrom(
@@ -53,6 +60,7 @@ def load_pure_selection_functions():
         "TOURNAMENT": 33121,
         "MIN_TIME_TO_CLOSE": timedelta(hours=36),
         "timezone": timezone,
+        "Counter": Counter,
     }
     exec(compile(ast.fix_missing_locations(module), "<entry-selection>", "exec"), ns)
     return ns["available_binary_questions"], ns["select_question"]
@@ -95,6 +103,38 @@ class EntryTests(unittest.TestCase):
         self.assertIn('publish_reports_to_metaculus=(mode == "submit")', SCRIPT)
         self.assertIn('skip_previously_forecasted_questions=True', SCRIPT)
         self.assertIn("forecast_questions([selected]", SCRIPT)
+        self.assertIn('group_question_mode="unpack_subquestions"', SCRIPT)
+
+
+    def test_includes_group_subquestions(self):
+        grouped = FakeBinaryQuestion(
+            55000, id_of_question=901, question_ids_of_group=[901, 902],
+            close_time=self.now+timedelta(days=8),
+        )
+        options = self.get_eligible(FakeClient([grouped]), self.now)
+        self.assertEqual(len(options), 1)
+        self.assertEqual(self.select(options, "901").id_of_question, 901)
+
+    def test_rejects_post_id_for_group_subquestion(self):
+        grouped = FakeBinaryQuestion(
+            55000, id_of_question=901, question_ids_of_group=[901, 902],
+            close_time=self.now+timedelta(days=8),
+        )
+        with self.assertRaises(ValueError):
+            self.select([grouped], "55000")
+
+    def test_missing_subquestion_id_fail_closed(self):
+        grouped = FakeBinaryQuestion(
+            55000, id_of_question=None, question_ids_of_group=[901, 902],
+            close_time=self.now+timedelta(days=8),
+        )
+        self.assertEqual(self.get_eligible(FakeClient([grouped]), self.now), [])
+
+    def test_previously_forecasted_flag_blocks_repeat(self):
+        q = FakeBinaryQuestion(
+            101, close_time=self.now + timedelta(days=7), already_forecasted=True
+        )
+        self.assertEqual(self.get_eligible(FakeClient([q]), self.now), [])
 
     def test_filters_already_forecast(self):
         q = FakeBinaryQuestion(111, close_time=self.now+timedelta(days=8), previous_forecasts=[0.4])
