@@ -16,7 +16,7 @@ from forecasting_tools import BinaryQuestion, ForecastReport, MetaculusClient
 from scripts.free_single_question_test import free_model_config
 from main import FallTemplateBot2026
 
-TOURNAMENT = "fall-futureeval-2026"
+TOURNAMENT = 33121  # Official Metaculus FE_FALL_2026_ID (SDK constant)
 TOURNAMENT_URL = "https://www.metaculus.com/tournament/fall-futureeval-2026/"
 MIN_TIME_TO_CLOSE = timedelta(hours=36)
 
@@ -27,22 +27,40 @@ def available_binary_questions(client, now: datetime) -> list[BinaryQuestion]:
         TOURNAMENT, group_question_mode="exclude"
     )
     accepted: list[BinaryQuestion] = []
+    diagnostics = {
+        "not_binary": 0, "conditional": 0,
+        "already_forecast": 0, "no_close_time": 0,
+        "naive_close_time": 0, "closing_soon": 0,
+        "missing_post_id": 0,
+    }
     for q in questions:
         if not isinstance(q, BinaryQuestion):
+            diagnostics["not_binary"] += 1
             continue
-        if q.conditional_type is not None or q.previous_forecasts:
+        if q.conditional_type is not None:
+            diagnostics["conditional"] += 1
+            continue
+        if q.previous_forecasts:
+            diagnostics["already_forecast"] += 1
             continue
         if q.close_time is None:
+            diagnostics["no_close_time"] += 1
             continue
         close = q.close_time
         if close.tzinfo is None:
             # Never silently assume local timezone.
+            diagnostics["naive_close_time"] += 1
             continue
         if close.astimezone(timezone.utc) <= now + MIN_TIME_TO_CLOSE:
+            diagnostics["closing_soon"] += 1
             continue
         if q.id_of_post is None:
+            diagnostics["missing_post_id"] += 1
             continue
         accepted.append(q)
+    print(f"TOURNAMENT API ID: {TOURNAMENT}; open standalone raw questions={len(questions)}")
+    print(f"Eligible first-entry binary questions={len(accepted)}")
+    print(f"Rejected by reason (first applicable): {diagnostics}")
     # Closest to 7 days away; quick feedback but adequate review window.
     return sorted(
         accepted,
