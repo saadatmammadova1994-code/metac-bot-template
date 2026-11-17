@@ -13,6 +13,7 @@ from forecasting_tools import MetaculusQuestion
 from main import FallTemplateBot2026
 from research_sources import (
     fetch_news_with_fallback,
+    filter_relevant_headlines,
     format_news_brief,
     normalize_query,
 )
@@ -59,8 +60,13 @@ class ResearchFallBot2026(FallTemplateBot2026):
             logger.warning("Headline index unavailable: %s", type(exc).__name__)
             print("Research source status: unavailable; 0 verified articles")
             return format_news_brief([])
+        relevant = filter_relevant_headlines(question.question_text, articles)
+        rejected = len(articles) - len(relevant)
         print(
-            f"Research source status: {len(articles)} unverified indexed headline(s); "
-            "no full articles downloaded or verified"
+            f"Research source status: indexed={len(articles)}, "
+            f"topic_candidates={len(relevant)}, off_topic_rejected={rejected}; "
+            "all titles UNVERIFIED; no full articles downloaded"
         )
-        return format_news_brief(articles)
+        if not relevant:
+            logger.info("No title directly matches the question; avoid irrelevant news.")
+        return format_news_brief(relevant)
