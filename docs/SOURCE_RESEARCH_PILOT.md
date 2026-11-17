@@ -102,3 +102,23 @@ remains unchanged.
 
 For a verification run, select `feature/source-research-test` in the
 manual GitHub `Test Bot` workflow; do not enable tournament workflows.
+
+## Actual relevance-filter smoke test — 17 November 2026
+
+GitHub manual run: https://github.com/saadatmammadova1994-code/metac-bot-template/actions/runs/44047886422
+
+- Workflow completed **successfully** on `feature/source-research-test`.
+- Logs: `indexed=6, topic_candidates=0, off_topic_rejected=6`.
+- Research code produced one forecast in **dry-run mode**.
+- Log confirmed: `Research dry run complete; NO forecast was submitted.`
+- This validates that the relevance gate rejects all six retrieved headlines
+  for test question #43327 and the dry-run execution avoids posting.
+- Important limitation: no manual ground-truth labeling of these six titles,
+  no independent verification of retrieved articles, and no evidence of
+  predictive performance improvement. A zero-candidate result can also be
+  caused by an overly strict filter or poor keyword retrieval.
+
+Next focus: improve query specificity, benchmark headline relevance on
+pre-labeled positive AND negative examples, verify primary-source access,
+and only then decide whether to use this system for competition forecasting.
+Do not repeat the same test merely to generate more submissions.
