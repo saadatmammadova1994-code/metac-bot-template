@@ -12,10 +12,12 @@
 - The default \`EXPERIMENTAL_NEWS_RESEARCH\` setting is off. Only the **Test Bot**
   workflow in branch \`feature/source-research-test\` sets it to "1".
 - When enabled, the model proposes one short query. \`research_sources.py\`
-  queries the keyless GDELT DOC index at most once for up to six recent,
-  timestamped article headlines and URLs. Full article content is **not**
-  retrieved or verified. On HTTP 429, timeout, malformed reply or zero matches,
-  it returns an explicit **no-evidence** message.
+  queries the keyless GDELT DOC index at most once; if unavailable or empty,
+  it tries Google News RSS at most once. It returns up to six recent, timestamped
+  article headlines and URLs. Full article content is **not**
+  retrieved or verified. On GDELT HTTP 429, timeout, malformed reply or zero matches,
+  it tries the RSS fallback. If both fail or return no matches, it returns an
+  explicit **no-evidence** message.
 - The forecasting and parsing model remains Gemini 3.1 Flash-Lite. This
   experimental version consumes at least one additional model request.
 - Headlines are untrusted leads, NOT confirmed evidence. Independent checks
@@ -32,8 +34,8 @@
   syntax checks are run in CI.
 - Do not merge, enable experimental research for live tournament questions,
   or claim a positive skill lift without real tests and source QA.
-- GDELT may impose rate limits; this integration deliberately makes only one
-  request and does not automatically retry.
+- GDELT and Google News RSS may impose rate limits; the integration makes
+  at most one request per provider (two total), with no automatic retries.
 
 ## Real-data evaluation restrictions
 Metaculus API documentation says data retrieved via the API must not be used
