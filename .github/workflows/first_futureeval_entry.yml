@@ -21,6 +21,11 @@ on:
         required: true
         default: false
         type: boolean
+      confirm_free_tier:
+        description: "I checked Google AI Studio project is Free Tier (no billing)"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -51,11 +56,13 @@ jobs:
           FIRST_ENTRY_MODE: ${{ inputs.mode }}
           FIRST_ENTRY_QUESTION_ID: ${{ inputs.question_id }}
           FIRST_ENTRY_CONFIRM: ${{ inputs.confirm_live }}
+          FIRST_ENTRY_FREE_TIER_CONFIRMED: ${{ inputs.confirm_free_tier }}
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           test -n "$METACULUS_TOKEN" || (echo "Missing Metaculus token" && exit 1)
           test -n "$GEMINI_API_KEY" || (echo "Missing Gemini key" && exit 1)
+          test "$FIRST_ENTRY_FREE_TIER_CONFIRMED" = "true" || (echo "Confirm free-tier project before any model usage" && exit 1)
           grep -Fq 'FREE_MODEL = "gemini/gemini-3.1-flash-lite"' scripts/free_single_question_test.py
           if [ "$FIRST_ENTRY_MODE" = "submit" ]; then
             test "$FIRST_ENTRY_CONFIRM" = "true" || (echo "No authorization for submission" && exit 1)
@@ -69,6 +76,7 @@ jobs:
           FIRST_ENTRY_MODE: ${{ inputs.mode }}
           FIRST_ENTRY_QUESTION_ID: ${{ inputs.question_id }}
           FIRST_ENTRY_CONFIRM: ${{ inputs.confirm_live }}
+          FIRST_ENTRY_FREE_TIER_CONFIRMED: ${{ inputs.confirm_free_tier }}
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: uv run python -m scripts.futureeval_first_entry
