@@ -36,8 +36,9 @@ jobs:
           test -n "$GEMINI_API_KEY" || (echo "Missing GEMINI_API_KEY" && exit 1)
           grep -Fq 'FREE_MODEL = "gemini/gemini-3.1-flash-lite"' scripts/free_single_question_test.py
           echo "Manual-only, single-question, Google free-tier smoke test; requires NO BILLING project"
-      - name: Run one test-area binary forecast only
+      - name: Run one test-area binary forecast only (optional keyless news headlines)
         env:
+          EXPERIMENTAL_NEWS_RESEARCH: "1"
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: uv run python -m scripts.free_single_question_test
