@@ -50,5 +50,41 @@ https://github.com/Metaculus/metac-bot-template#quick-start---fork-and-use-githu
   If a key is associated with billing, the free-tier assumption is invalid.
 - `METACULUS_TOKEN` is already configured by the account owner (not visible
   to the assistant). Do not reveal it in code, screenshots, or chat.
-- The single-question smoke test is NOT run automatically and has not yet been
-  attempted against the Metaculus API. It may fail due to quota/model access.
+- The baseline one-question Gemini smoke test succeeded on 17 Nov 2026 (test area,
+  question 43327, under bot account MerryCreater-bot). This establishes API
+  connectivity only, NOT forecasting skill. The experimental research variant
+  has NOT been tested against Metaculus.
+
+## Experimental research branch — no-cost, opt-in
+
+- `grounded_bot.py` extends the existing `GuardedFallBot2026` with source
+  discovery that is **off by default**.
+- `research_sources.py` issues **at most one** GDELT DOC 2.0 request per question
+  (up to six dated news **headlines**, NOT full article text). GDELT requires
+  no API key but may return 429 rate limits or incomplete coverage.
+- Headlines are unverified leads: they are NOT confirmed facts, authoritative
+  evidence, or a replacement for checking original publisher content.
+- The default `main` branch test remains the proven no-research baseline.
+  On `feature/futureeval-v2-guard-review`, the **manual Test Bot** workflow
+  sets `EXPERIMENTAL_NEWS_RESEARCH=1` and tests one binary question from the
+  unscored bot-testing area. Do not run the scheduled competition workflow.
+- A query-planning Gemini invocation and GDELT call are extra requests, so
+  free-tier quotas may be hit. No billed Google Search grounding is enabled.
+- The model is pinned to `gemini/gemini-3.1-flash-lite` for all AI roles, and
+  the experimental research calls GDELT directly. Never link billing solely
+  to bypass free-tier limits.
+
+## Evidence and data permissions
+
+- Metaculus official API rules restrict reuse of Metaculus question/forecast
+  data to train, evaluate or develop models without prior written permission:
+  https://www.metaculus.com/api/
+  Request benchmarking access through the official **Metaculus Data Needs**
+  form before downloading/rescoring historical Metaculus datasets.
+- The offline `chronological_backtest.py` accepts independently and lawfully
+  acquired labeled records; **no Metaculus history has been downloaded**.
+- Brier score and log loss are diagnostic, not the tournament's official
+  weighted **Peer Score**. No measured improvement over the standard bot exists.
+- The automated tests use fabricated deterministic fixtures, not real events.
+- Both tournament and Metaculus Cup live schedules are disabled on `main`;
+  all live submissions require a separate manual decision and verified budget.
