@@ -51,7 +51,7 @@ def main() -> None:
         folder_to_save_reports_to=None,
         llms=free_model_config(),
     )
-    questions = MetaculusClient.get_all_open_questions_from_tournament(TEST_TOURNAMENT)
+    questions = MetaculusClient().get_all_open_questions_from_tournament(TEST_TOURNAMENT)
     binary = next((q for q in questions if isinstance(q, BinaryQuestion) and
                    getattr(q, "conditional_type", None) is None), None)
     if binary is None:
