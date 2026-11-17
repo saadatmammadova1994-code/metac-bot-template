@@ -39,3 +39,16 @@ https://github.com/Metaculus/metac-bot-template#quick-start---fork-and-use-githu
 - Do not claim any percentage accuracy improvement or likelihood of winning
   until verified on genuine held-out or live data.
 - Competition pool is not an individual guaranteed award.
+
+## OpenRouter unavailable: Google AI Studio free-tier alternative (17 Nov 2026)
+
+- A separate, manually invoked `Test Bot` workflow on `main` and this branch
+  uses only `gemini/gemini-3.1-flash-lite` for model roles and no researcher.
+- Google AI Studio supports Azerbaijan. Obtain a `GEMINI_API_KEY` using
+  https://aistudio.google.com/api-keys and save it in **GitHub Actions Secrets**.
+- **Use a non-billing project.** Do not link Cloud Billing or enable a paid tier.
+  If a key is associated with billing, the free-tier assumption is invalid.
+- `METACULUS_TOKEN` is already configured by the account owner (not visible
+  to the assistant). Do not reveal it in code, screenshots, or chat.
+- The single-question smoke test is NOT run automatically and has not yet been
+  attempted against the Metaculus API. It may fail due to quota/model access.
