@@ -1,0 +1,74 @@
+name: FutureEval — first competition entry (manual)
+
+# No scheduled runs. Preview is the DEFAULT; submit requires two explicit inputs.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preview = NO submission; submit = one real tournament forecast"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - submit
+      question_id:
+        description: "Exact ID shown in PREVIEW (required for submit)"
+        required: false
+        type: string
+      confirm_live:
+        description: "I authorize one live FutureEval tournament forecast (submit only)"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: futureeval-one-question-entry
+  cancel-in-progress: false
+
+jobs:
+  first-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.13.1"
+      - name: Install locked dependencies
+        run: uv sync --locked
+      - name: Preflight - refuse accidental submissions and missing tokens
+        env:
+          FIRST_ENTRY_MODE: ${{ inputs.mode }}
+          FIRST_ENTRY_QUESTION_ID: ${{ inputs.question_id }}
+          FIRST_ENTRY_CONFIRM: ${{ inputs.confirm_live }}
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          test -n "$METACULUS_TOKEN" || (echo "Missing Metaculus token" && exit 1)
+          test -n "$GEMINI_API_KEY" || (echo "Missing Gemini key" && exit 1)
+          grep -Fq 'FREE_MODEL = "gemini/gemini-3.1-flash-lite"' scripts/free_single_question_test.py
+          if [ "$FIRST_ENTRY_MODE" = "submit" ]; then
+            test "$FIRST_ENTRY_CONFIRM" = "true" || (echo "No authorization for submission" && exit 1)
+            echo "$FIRST_ENTRY_QUESTION_ID" | grep -Eq '^[0-9]+$' || (echo "Exact numeric question ID required" && exit 1)
+          else
+            test "$FIRST_ENTRY_MODE" = "preview" || exit 1
+          fi
+          echo "One-question manual workflow; no paid web search and no schedules."
+      - name: Run one competition question preview OR authorized live submission
+        env:
+          FIRST_ENTRY_MODE: ${{ inputs.mode }}
+          FIRST_ENTRY_QUESTION_ID: ${{ inputs.question_id }}
+          FIRST_ENTRY_CONFIRM: ${{ inputs.confirm_live }}
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: uv run python -m scripts.futureeval_first_entry
