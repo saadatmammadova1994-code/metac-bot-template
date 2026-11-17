@@ -73,7 +73,7 @@ class EntryTests(unittest.TestCase):
 
     def test_official_tournament_id(self):
         self.assertIn("TOURNAMENT = 33121", SCRIPT)
-        self.assertIn("open standalone raw questions=", SCRIPT)
+        self.assertIn("open question/subquestion items=", SCRIPT)
         self.assertIn("Rejected by reason (first applicable)", SCRIPT)
 
     def test_script_syntax(self):
