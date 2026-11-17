@@ -130,6 +130,11 @@ def main() -> None:
     client = MetaculusClient()
     now = datetime.now(timezone.utc)
     candidates = available_binary_questions(client, now)
+    if not candidates and mode == "preview" and not question_id:
+        print("NO OPEN ELIGIBLE FUTUREEVAL QUESTIONS; preview ends without model inference.")
+        print("This is an expected empty feed, not an API key or code failure.")
+        print("NO forecast was submitted. Check again when new tournament questions open.")
+        return
     selected = select_question(candidates, question_id)
     selected_id = get_question_identity(selected)
     print(f"TOURNAMENT: {TOURNAMENT} (one question only)")
