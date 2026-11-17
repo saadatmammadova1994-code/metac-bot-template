@@ -77,6 +77,9 @@ def main() -> None:
     mode = os.getenv("FIRST_ENTRY_MODE", "preview")
     question_id = os.getenv("FIRST_ENTRY_QUESTION_ID", "").strip()
     acknowledgement = os.getenv("FIRST_ENTRY_CONFIRM", "false").lower()
+    free_tier = os.getenv("FIRST_ENTRY_FREE_TIER_CONFIRMED", "false").lower()
+    if free_tier != "true":
+        raise SystemExit("Free Tier project not confirmed; no model run or submission")
     if mode not in {"preview", "submit"}:
         raise SystemExit("Unknown execution mode")
     if mode == "submit":
