@@ -40,4 +40,4 @@ jobs:
         env:
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: uv run python scripts/free_single_question_test.py
+        run: uv run python -m scripts.free_single_question_test
