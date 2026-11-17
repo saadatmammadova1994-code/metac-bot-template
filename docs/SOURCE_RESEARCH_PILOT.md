@@ -63,3 +63,29 @@ claims about rank or prizes.
 Use the stock \`main\` Test Bot as the control, but do not re-run it just
 for comparisons without a clear cost/quota reason. No model-performance
 comparison is yet possible with a single unresolved question.
+
+## Screenshot-based failure review (17 Nov 2026)
+
+The first live source-aware test on #43327 succeeded at posting a forecast, but
+the six retrieved headlines concerned unrelated topics (including geopolitics,
+aviation, domestic politics, and transport). The private Research Summary itself
+acknowledged that these were insufficient to address the EU-exit question.
+
+**Mitigation added AFTER that test**:
+- `filter_relevant_headlines` rejects titles lacking question-specific
+  evidence terms before they reach the forecasting prompt.
+- For the EU withdrawal question, a title must mention (a) one of the member
+  countries named in the question, (b) an exit/withdrawal event term and
+  (c) the EU/European Union or a specific exit term (e.g., Frexit).
+- For other questions, a deliberately conservative lexical overlap heuristic
+  screens titles. It is NOT a verified semantic relevance model.
+- When no title survives, the bot explicitly reports no relevant headlines.
+  Absence of matching headlines DOES NOT prove the event cannot occur.
+- Test log now prints the indexed, accepted and rejected title counts;
+  no article content is fetched or independently fact-checked.
+- All **29 offline unit tests** passed on GitHub CI run:
+  https://github.com/saadatmammadova1994-code/metac-bot-template/actions/runs/44047409082
+
+**Next gate:** the updated relevance filter has NOT yet been run against
+Metaculus, GDELT or Google RSS live. Do not claim it improved Brier Score,
+Peer Score or competition rank. Leave production scheduling disabled.
