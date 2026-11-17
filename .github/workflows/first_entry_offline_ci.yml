@@ -1,0 +1,26 @@
+name: FutureEval first-entry offline safety checks
+
+on:
+  push:
+    branches:
+      - feature/futureeval-first-entry
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile script without installing any dependencies
+        run: python -m compileall -q scripts/futureeval_first_entry.py
+      - name: Run standard-library only safety tests
+        run: python -m unittest discover -s tests -p test_first_entry_safety.py -v
