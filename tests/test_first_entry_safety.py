@@ -30,7 +30,7 @@ class FakeClient:
         self.questions = questions
 
     def get_all_open_questions_from_tournament(self, name, group_question_mode):
-        assert name == "fall-futureeval-2026"
+        assert name == 33121
         assert group_question_mode == "exclude"
         return self.questions
 
@@ -50,7 +50,7 @@ def load_pure_selection_functions():
     )
     ns = {
         "BinaryQuestion": FakeBinaryQuestion,
-        "TOURNAMENT": "fall-futureeval-2026",
+        "TOURNAMENT": 33121,
         "MIN_TIME_TO_CLOSE": timedelta(hours=36),
         "timezone": timezone,
     }
@@ -62,6 +62,11 @@ class EntryTests(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 11, 17, 8, tzinfo=timezone.utc)
         self.get_eligible, self.select = load_pure_selection_functions()
+
+    def test_official_tournament_id(self):
+        self.assertIn("TOURNAMENT = 33121", SCRIPT)
+        self.assertIn("open standalone raw questions=", SCRIPT)
+        self.assertIn("Rejected by reason (first applicable)", SCRIPT)
 
     def test_script_syntax(self):
         ast.parse(SCRIPT)
