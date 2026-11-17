@@ -1,0 +1,27 @@
+name: FutureEval feed read-only diagnostics
+
+on:
+  push:
+    branches:
+      - diagnostics/futureeval-read-only-feed
+
+permissions:
+  contents: read
+
+jobs:
+  check-feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check out diagnostics only
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax check
+        run: python -m py_compile scripts/diagnose_futureeval_feed.py
+      - name: Read-only API queries with bot token
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+        run: python scripts/diagnose_futureeval_feed.py
