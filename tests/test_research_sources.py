@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from research_sources import (
     MAX_ARTICLES, MAX_BYTES, fetch_recent_headlines, format_news_brief,
     gdelt_url, normalize_query, parse_articles,
+    fetch_google_news_rss, fetch_news_with_fallback,
 )
 
 NOW = datetime(2026, 11, 17, 9, 0, tzinfo=timezone.utc)
@@ -126,7 +127,51 @@ class Tests(unittest.TestCase):
         s = Path("grounded_bot.py").read_text()
         ast.parse(s)
         self.assertIn('EXPERIMENTAL_NEWS_RESEARCH', s)
-        self.assertIn('await asyncio.to_thread(fetch_recent_headlines, topic)', s)
+        self.assertIn('await asyncio.to_thread(fetch_news_with_fallback, topic)', s)
+
+
+    def test_rss_fallback_when_gdelt_rate_limited(self):
+        import urllib.error
+        urls = []
+        rss = (b'<?xml version="1.0" encoding="UTF-8"?>'
+               b'<rss><channel><item>'
+               b'<title>New European summit</title>'
+               b'<link>https://news.google.com/rss/articles/abc</link>'
+               b'<pubDate>Mon, 16 Nov 2026 12:00:00 GMT</pubDate>'
+               b'<source>World News</source>'
+               b'</item></channel></rss>')
+        def reject_primary(req, timeout):
+            urls.append(req.full_url)
+            raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, None)
+        def rss_open(req, timeout):
+            urls.append(req.full_url)
+            return Response({}, content_type="application/rss+xml", raw=rss)
+        # Runtime clock is 17 Nov 2026; supply a fixed timestamp to validate
+        # RSS separately and then confirm fallback tried each index only once.
+        data = fetch_google_news_rss("European union summit",
+                                     opener=rss_open, now=NOW)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["headline"], "New European summit")
+        try:
+            merged = fetch_news_with_fallback(
+                "European union summit", reject_primary, rss_open
+            )
+        except Exception as exc:
+            # Intentionally no mocking of wall-clock on fallback; the date
+            # could be outside 30d if this fixture is run in a later year.
+            self.fail(f"Fallback should not raise, got: {exc}")
+        self.assertLessEqual(len(merged), MAX_ARTICLES)
+        self.assertEqual(len([u for u in urls if "api.gdeltproject" in u]), 1)
+
+    def test_rss_rejects_untrusted_link(self):
+        rss = (b'<rss><channel><item><title>Bad link</title>'
+               b'<link>https://attacker.invalid/</link>'
+               b'<pubDate>Mon, 16 Nov 2026 12:00:00 GMT</pubDate>'
+               b'</item></channel></rss>')
+        def fake(req, timeout):
+            return Response({}, content_type="application/rss+xml", raw=rss)
+        result = fetch_google_news_rss("European union summit", fake, now=NOW)
+        self.assertEqual(result, [])
 
 
 if __name__ == "__main__":
