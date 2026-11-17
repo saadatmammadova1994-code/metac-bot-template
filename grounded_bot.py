@@ -46,7 +46,10 @@ class ResearchFallBot2026(FallTemplateBot2026):
             topic = normalize_query(str(proposed))
         except (ValueError, TypeError, RuntimeError) as exc:
             logger.warning("Query planning fallback (%s)", type(exc).__name__)
-            topic = normalize_query(question.question_text)
+            try:
+                topic = normalize_query(question.question_text)
+            except ValueError:
+                return format_news_brief([])
 
         # One keyless request; GDELT can rate-limit. Headlines are discovery
         # metadata only and should never be asserted to prove a claim.
