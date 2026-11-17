@@ -2,7 +2,7 @@ name: Forecast on new AI tournament questions
 
 on:
   workflow_dispatch:
-  # Scheduling intentionally disabled until owner explicitly opts in after live test.
+  # Manual-only until user approves scheduling and model budget.
 
 # Add concurrency group to prevent parallel runs
 concurrency:
