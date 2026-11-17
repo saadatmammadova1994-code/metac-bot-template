@@ -89,3 +89,16 @@ acknowledged that these were insufficient to address the EU-exit question.
 **Next gate:** the updated relevance filter has NOT yet been run against
 Metaculus, GDELT or Google RSS live. Do not claim it improved Brier Score,
 Peer Score or competition rank. Leave production scheduling disabled.
+
+## Safety change: future research checks are dry runs
+
+After reviewing the private comment, repeated posts to test question #43327
+were judged unhelpful. The feature-branch `Test Bot` now sets
+`publish_reports_to_metaculus=False` whenever
+`EXPERIMENTAL_NEWS_RESEARCH=1`. The source count and generated report can
+still be inspected in GitHub job logs, but **no additional forecast is
+submitted to Metaculus** from this research branch. The `main` baseline
+remains unchanged.
+
+For a verification run, select `feature/source-research-test` in the
+manual GitHub `Test Bot` workflow; do not enable tournament workflows.
